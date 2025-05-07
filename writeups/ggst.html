@@ -33,9 +33,9 @@
     <main>
         <section id="summary">
             <h2>Summary</h2>
-            <p>This vulnerability takes advantage of the fact that the game sends custom images to a server and are read
+            <p>This vulnerability takes advantage of the fact that the game sends locally generated images to the server and that they are read
                 back by the clients upon request.</p>
-            <p>The problem lies in using the images in a png format and not doing any validations on the
+            <p>The problem lies in using the images in a png format and not doing any validations of the
                 uploaded/downloaded image dimensions</p>
             <p>Attempting to read it on an unpatched client will crash the game.</p>
         </section>
@@ -48,7 +48,7 @@
             <p><a href="https://github.com/HAWGT/GGST-Enhancer/">Github</a></p>
             <p>I'm also a member of multiple modding discord servers, one in particular being <a
                     href="https://discord.com/invite/tgFrebr">"Unreal Anime Mods"</a>.</p>
-            <p>One day, as I as checking "strive-modding", I came across something interesting</p>
+            <p>One day, as I as checking "strive-modding", I came across something interesting:</p>
             <img src='0.png'>
             <img src='1.png'>
             <p>This immediately drew my attention, as it resided server-side, there I went to open up IDA and check out
@@ -60,7 +60,7 @@
         </section>
         <section id="reversing_p1">
             <h2>Reversing the game</h2>
-            <p>First thing to look is for any references that are likely to be related with the R-Code avatar image</p>
+            <p>First thing to look is for any references that are likely to be related with the R-Code avatar image...</p>
             <img src='3.png'>
             <p>From those functions, I was immediately interested in:</p>
             <p><code
@@ -75,7 +75,7 @@
                         const TLGameServerStruct::SDownloadTUSRecv *recvData,
                         bool suceeded)</code>
             </p>
-            <p>In the export function, I found that it calls:</p>
+            <p>In the <code>ExportAvatarImage</code> function, it saves the image buffer into the save file retrieved from:</p>
             <p><code class="language-c">bool __fastcall AREDLobbyCaptureAvatar::ExportAvatarRenderTarget(AREDLobbyCaptureAvatar *this, FBufferArchive *Buffer)</code></p>
             <p><pre><code class="language-c">
 if ( AREDLobbyCaptureAvatar::ExportAvatarRenderTarget(v15, &v27) )
@@ -90,23 +90,20 @@ if ( AREDLobbyCaptureAvatar::ExportAvatarRenderTarget(v15, &v27) )
             </code></pre></p>
             <img src='6.png'>
             <img src='7.png'>
-            <p>After going through the function, I found that it calls:</p>
-            <p><code class="language-c"><p>The function above calls:</p>
-            <p><code language="language-c">UTexture2D *__fastcall REDImageLib::LoadTexture2DFromBufferNosRGB(
+            <p>Having looked at <code>ExportAvatarRenderTarget</code>, I found that it calls:</p>
+            <p><code class="language-c">UTexture2D *__fastcall REDImageLib::LoadTexture2DFromBufferNosRGB(
                     const void *pBuffer,
                     int Size,
                     EImageFormat format,
                     int *Width,
                     int *Height)</code></p>
-            <p>So this is how I found out, the game uses pngs for the avatar images,also, the function above will be important for later...</p></code></p>
-            
-            <p>Which will call:</p>
+            <p>Said function will then call:</p>
             <p><code class="language-c">bool __fastcall FImageUtils::ExportRenderTarget2DAsPNG(UTextureRenderTarget2D *TexRT, FArchive *Ar)</code></p>
-            <p>This means that it's a png file.</p>
-            <p>Going through the upload function, figuring out where it was called would be very useful.</p>
+            <p>This means it's a png file.</p>
+            <p>Going through <code>UploadAvatarImage</code> and seeing where it's called from...</p>
             <img src='4.png'>
-            <p>Having this and finding out the size limit for the upload, I also found that there is a flag for the
-                dirty state, which will dictate if it should upload.</p>
+            <p>I have found out the size limit for the upload, which closely matches the maximum byte size for the png, I also found that there is a flag for the
+                dirty state, which will dictate where it will upload.</p>
             <p><pre><code class="language-c">
 if ( bTrigger )
 {
@@ -125,8 +122,7 @@ else
       return 0;
     }
 }
-            </code></pre></p>
-            <p><pre><code class="language-c">
+...
 if ( TLGameServerAPI::UploadTUS(
          Instance,
          1,
@@ -155,17 +151,30 @@ if ( this->apiId
     return 0;
 }
             </code></pre></p>
-            <p>I did think about patching this 262400 byte size limit, but glancing over the download function, it will only read back the 262400 bytes, the extra 4 bytes are for the buffer size</p>
-            <p>Now I was set on to finding how to inject a custom image to the game and force an upload, finding how and where it was stored was priority.</p>
+            <p>I did think about patching this 262400 byte size limit, but glancing over <code>OnFinishedDownload</code>, it will only read back the 262400 bytes, the extra 4 bytes are for the buffer size</p>
             <img src='5.png'>
-            <p><pre><code language="language-c">
+            <p><pre><code class="language-c">
 memset_0(v60, 0, 262404ui64);
                 ...
 memcpy_0(&v13->AllocatorInstance.Data[(int)v55], this->DownloadBuffer, 0x40100ui64)
             </code></pre></p>
-            <p>I happened to also look at the function down below:</p>
-            <p><code language="language-c">UTexture2D *__fastcall ULobbyBlueprintLibrary::GetLobbyAvatarImage(UObject *WorldContextObject)</code></p>
-            
+            <p>Since I was already able to modify the save file to grant special reward auras (this is present in the tool I published), I knew how the game's save system worked.</p>
+            <p>By getting the memory address of the <code>SaveDataManager</code>, I can now write to the memory offset <code>0x7ED0E4</code> my png file buffer, adding <code>0x40100</code> to it, will allow me to write the size, adding <code>0x40104</code> will allow me to force it to be valid.</p>
+            <img src='6.png'>
+            <img src='7.png'>
+            <p>With all of this in mind, I wanted something simple, every time it would try to capture the render target and load my local png file from disk.</p>
+            <p>To achieve that, I needed to find the chain of functions called, by looking at the <code>ExportAvatarImage</code> function, I saw that it is called by:</p>
+            <p><code class="language-c">void __fastcall UREDWidgetLobbyAvatarEditor::OnClosed(
+                UREDWidgetLobbyAvatarEditor *this,
+                ECommonWindowCloseReason reason)</code></p>
+            <p>Meaning, every time I close the avatar editor, it will capture the render target, generate the image, check for the local avatar settings cache and upload it to the server if different.</p>
+            <p>To iron out the last kink, I wanted to always upload by freezing the upload input flag. (offset: <code>0x459</code>)</p>
+            <p><code class="language-c">this->bUploadAvatarImage = 1;</code></p>
+            <img src='8.png'>
+            <p>Since the reversed executable is outdated and different from the Steam version, I had to use <a href="https://github.com/atom0s/Steamless">Steamless</a> to unpack the game as it is protected by SteamStub (there is a single point in time when the game wasn't packed)</p>
+            <p>I generated patterns for every relevant function and tried to find each in the reversed executable, I also double-checked every field offset for each struct.</p>
+            <p>I used this <a href="https://github.com/cursey/ida-pattern-maker">tool</a> to generate patterns. (sometimes it will generate something that isn't unique and requires double-checking)</p>
+            <p>I happened to look at the function below: (will be useful to confirm offsets)</p>
             <p><pre><code class="language-c">
 UTexture2D *__fastcall ULobbyBlueprintLibrary::GetLobbyAvatarImage(UObject *WorldContextObject)
 {
@@ -184,25 +193,8 @@ UTexture2D *__fastcall ULobbyBlueprintLibrary::GetLobbyAvatarImage(UObject *Worl
   return result;
 }
             </code></pre></p>
-            <p>From the code above, as obvious as it was, it is confirmed that the file is saved locally.</p>
-            <p>Since I was already able to modify the save file to grant special reward auras (this is present in the tool I published), I knew how the game's save system worked.</p>
-            <p>By getting the memory address of the SaveDataManager, I can now write to the memory offset 0x7ED0E4 my png file buffer, adding 0x40100 to it, will allow me to write the size, adding 0x40104 will allow me to force it to be valid.</p>
-            <img src='6.png'>
-            <img src='7.png'>
-            <p>With all of this in mind, I wanted something simple, every time it would try to capture the render target and load my local png file from disk.</p>
-            <p>To achieve that, I needed to find the chain of functions called, by looking at the export function, I saw that it is called by:</p>
-            <p><code class="language-c">void __fastcall UREDWidgetLobbyAvatarEditor::OnClosed(
-                UREDWidgetLobbyAvatarEditor *this,
-                ECommonWindowCloseReason reason)</code></p>
-            <p>Meaning, every time I close the avatar editor, it will capture the render target, generate the image, check for the local avatar settings cache and upload it to the server if different.</p>
-            <p>To iron out the last kink, I wanted to always upload by freezing the upload input flag. (offset: 0x459)</p>
-            <p><code class="language-c">this->bUploadAvatarImage = 1;</code></p>
-            <img src='8.png'>
-            <p>Since the reversed executable is outdated and different than the Steam version, I had to use <a href="https://github.com/atom0s/Steamless">Steamless</a> to unpack the game as it is protected by SteamStub (there is a single instance when the game wasn't packed)</p>
-            <p>I generated patterns for every relevant function and tried to find each in the reversed executable, I also double-checked every field offset for each struct.</p>
-            <p>I used this <a href="https://github.com/cursey/ida-pattern-maker">tool</a> to generate patterns.</p>
             <p><code class="language-c">*(_BYTE *)(a1 + 0x469) = 1;</code></p>
-            <p>The bUploadAvatarImage flag is located at offset 0x469 now. (to find this function I had to generate a pattern for ExportAvatarImage and then look for said pattern in the new executable and see where it is called).</p>
+            <p>The bUploadAvatarImage flag is located at offset <code>0x469</code> now. (to find this function I had to generate a pattern for <code>ExportAvatarImage</code> and then look for said pattern in the new executable and see where it is called).</p>
             <p>Here is the GetLobbyAvatarImage function in the current executable: (found by generating a pattern and scanning for it in the new executable)</p>
             <p><pre><code class="language-c">
 __int64 sub_140F05210()
@@ -222,8 +214,8 @@ __int64 sub_140F05210()
   return result;
 }
             </code></pre></p>
-            <p>The offset for the image buffer is now stored at: 0x7ED348</p>
-            <p>With some quick math, the difference between 0x82D448 and 0x7ED348 is 0x40100 (262400), which is unchanged.</p>
+            <p>The offset for the image buffer is now stored at: <code>0x7ED348</code></p>
+            <p>With some quick math, the difference between <code>0x82D448</code> and <code>0x7ED348</code> is <code>0x40100</code> (262400), which is unchanged.</p>
         </section>
         <section id="implementation_p1">
             <h2>Implementation</h2>
@@ -312,7 +304,7 @@ bool ReplaceAvatarImage()
         </section>
         <section id="story_p2">
             <h2>The return</h2>
-            <p>I was browsing Youtube and I came across this <a href="https://www.youtube.com/watch?v=dkjDzQIyrj8">video</a></p>
+            <p>I was browsing Youtube and I came across this <a href="https://www.youtube.com/watch?v=dkjDzQIyrj8">video</a>...</p>
             <iframe width="560" height="315" src="https://www.youtube.com/embed/dkjDzQIyrj8" 
                 title="YouTube video player" frameborder="0" 
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -321,14 +313,14 @@ bool ReplaceAvatarImage()
             <p>Could it be? A zero-day crasher for GGST?</p>
             <p>Right after watching the video, I crafted this masterpiece:</p>
             <img src='12.png'>
-            <p>To not hit the size limit, I had to save it with 1 bit depth.</p>
+            <p>To not hit the size limit, I had to save it with 1-bit depth.</p>
             <img src='13.png'>
             <p>37672 by 37672 with 261575 bytes in size. (183273 bytes if saved from a newer Paint.net version)</p>
             <p>Uploading this image will crash the game when I try to view the R-Code</p>
             <img src='14.png'>
             <section id="reversing_p2">
             <h2>Reversing the crash</h2>
-            <p>With Cheat Engine attached, I found the base address: 0x7FF62DFA0000</p>
+            <p>With Cheat Engine attached, I found the base address: <code>0x7FF62DFA0000</code></p>
             <p><pre><code>
 Fatal error!
 
@@ -340,12 +332,12 @@ Unhandled Exception: EXCEPTION_ACCESS_VIOLATION writing address 0xa8cce000
 0x00007ffaf77ee8d7 KERNEL32.DLL!UnknownFunction []
 0x00007ffaf81dc5dc ntdll.dll!UnknownFunction []
             </code></pre></p>
-            <p>0x7FF62EE6382D - 0x7FF62DFA0000 = 0xEC382D</p>
+            <p><code>0x7FF62EE6382D - 0x7FF62DFA0000 = 0xEC382D</code></p>
             <p>With the offset above, I'll look at what is being called prior to the crash.</p>
             <p><pre><code class="language-c">
 memcpy(v24, Src[0], (size_t)Src[1]);
             </code></pre></p>
-            <p>While this isn't exactly helpful, I found that the offset belongs to the LoadTexture2DFromBufferNosRGB function</p>
+            <p>While this isn't exactly helpful, I found that the offset belongs to the LoadTexture2DFromBufferNosRGB function:</p>
             <p><pre><code class="language-c">
 Transient = UTexture2D::CreateTransient(v18, v17, PF_B8G8R8A8, 0i64);
 if ( Transient )
@@ -364,8 +356,8 @@ if ( Transient )
             </code></pre></p>
             <p>From the snippet above, it is creating a Texture2D object and then copying the buffer to a memory location, the problem is that the generated texture is a raw uncompressed texture, resulting in a very big object.</p>
             <p>As I can't see any validations regarding size, it is up to me to implement them.</p>
-            <p>I also found out that returning a null UTexture2D would result in an infinite loading when attempting to view other player's profile in the lobby, be it local or remote.</p>
-            <p>Ended up finding what called LoadTexture2DFromBufferNosRGB with Cheat Engine as my (VEH) debugger and found:</p>
+            <p>I also found out that returning a null <code>Texture2D</code> object would result in an infinite loading when attempting to view other player's profile in the lobby, be it local or remote.</p>
+            <p>Ended up finding what called <code>LoadTexture2DFromBufferNosRGB</code> with Cheat Engine as my (VEH) debugger and found:</p>
             <p><code clas="language-c">void __fastcall UREDWidgetCommonAvatarFace::SetData_LocalUser(UREDWidgetCommonAvatarFace *this)</code></p>
             <p>Which is called by:</p>
             <p><code class="language-c">void __fastcall UREDWidgetRCodePageOne::RefreshStatic(
@@ -391,7 +383,7 @@ else
         UREDWidgetCommonAvatarFace::SetData_OnlineUser(v15, userID);
 }
             </code></pre></p>
-            <p>Upon checking SetData_LocalUser and SetData_OnlineUser, they only seem to set the face state and the avatar image, so it was safe to patch out.</p>
+            <p>Upon checking <code>SetData_LocalUser</code> and <code>SetData_OnlineUser</code>, they only seem to set the face state and the avatar image, so it was safe to patch out.</p>
             </section>
             <section id="implementation_p2">
             <h2>Preventing the exploit on my client</h2>
@@ -438,7 +430,7 @@ __int64 __fastcall hk_CreateTransient(int InSizeX, int InSizeY, __int64 InFormat
         </section>
         <section id="showcase">
             <h2>Showcase</h2>
-            <p>As you can see, I don't crash, but others mysteriously disappear from the lobby</p>
+            <p>As you can see, I don't crash, but others mysteriously disappear from the lobby...</p>
             <iframe width="560" height="315" src="https://www.youtube.com/embed/TxcuXueTHW0"
                 title="YouTube video player" frameborder="0" 
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -446,8 +438,9 @@ __int64 __fastcall hk_CreateTransient(int InSizeX, int InSizeY, __int64 InFormat
             </iframe>
         <section id="conclusion">
             <h2>Conclusion</h2>
-            <p>I had a lot of fun reversing and coming up with the exploit chain, this is something that can definitely be abused and the developers should just transmit the chosen clothes for the avatar instead of relying on pngs, or replace them with jpegs at the very least</p>
-            <p>I also discovered how to inject custom jpeg thumbnails into the museum figures, of which can be shared and viewed online. (this is also implemented in my tool)</p>
+            <p>I had a lot of fun reversing and coming up with the exploit chain, this is something that can definitely be abused and the developers should just transmit the chosen clothes for the avatar instead of relying on pngs, or validate them at the very least. (or use jpegs)</p>
+            <p>I also discovered how to inject custom jpeg thumbnails into the museum figures, which can be shared and viewed online. (this is also implemented in my tool)</p>
+            <p>The crash fix is also implemented in my tool.</p>
     </main>
     <footer>
         <p><a href="https://github.com/HAWGT">GitHub</a> | <a href="mailto:hawgt@protonmail.com">Contact</a></p>

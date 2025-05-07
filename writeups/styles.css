@@ -1,11 +1,27 @@
-/* General Styles */
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+/* Apply the font to the body */
 body {
-    font-family: 'Arial', sans-serif;
-    line-height: 1.6;
+    font-family: 'Roboto', Arial, sans-serif; /* Use Roboto as the primary font */
+    font-size: 16px; /* Set a comfortable font size */
+    line-height: 1.6; /* Improve readability with proper line spacing */
+    color: #333; /* Set a dark gray color for the text */
+    background-color: #f9f9f9; /* Optional: Light background for better contrast */
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
-    color: #333;
+}
+
+/* Style headings */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto', Arial, sans-serif; /* Use the same font for headings */
+    font-weight: 700; /* Make headings bold */
+    color: #222; /* Slightly darker color for headings */
+}
+
+/* Style paragraphs */
+p {
+    margin-bottom: 1em; /* Add spacing between paragraphs */
 }
 
 /* Header */
@@ -19,6 +35,27 @@ header {
 header h1 {
     margin: 0;
     font-size: 2rem;
+}
+
+/* Style for list items */
+nav ul li {
+    font-family: 'Roboto', Arial, sans-serif; /* Use a clean, modern font */
+    font-size: 16px; /* Adjust font size for readability */
+    color: #444; /* Dark gray color for text */
+    margin: 5px 0; /* Add spacing between list items */
+    line-height: 1.5; /* Improve line spacing */
+}
+
+/* Style for links inside list items */
+nav ul li a {
+    text-decoration: none; /* Remove underline from links */
+    color: #007BFF; /* Use a blue color for links */
+    transition: color 0.3s ease; /* Smooth transition for hover effect */
+}
+
+/* Hover effect for links */
+nav ul li a:hover {
+    color: #0056b3; /* Darker blue on hover */
 }
 
 /* Main Content */
