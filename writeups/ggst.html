@@ -358,7 +358,7 @@ if ( Transient )
             <p>As I can't see any validations regarding size, it is up to me to implement them.</p>
             <p>I also found out that returning a null <code>Texture2D</code> object would result in an infinite loading when attempting to view other player's profile in the lobby, be it local or remote.</p>
             <p>Ended up finding what called <code>LoadTexture2DFromBufferNosRGB</code> with Cheat Engine as my (VEH) debugger and found:</p>
-            <p><code clas="language-c">void __fastcall UREDWidgetCommonAvatarFace::SetData_LocalUser(UREDWidgetCommonAvatarFace *this)</code></p>
+            <p><code class="language-c">void __fastcall UREDWidgetCommonAvatarFace::SetData_LocalUser(UREDWidgetCommonAvatarFace *this)</code></p>
             <p>Which is called by:</p>
             <p><code class="language-c">void __fastcall UREDWidgetRCodePageOne::RefreshStatic(
                 UUserWidget *target,
