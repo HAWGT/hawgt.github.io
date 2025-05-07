@@ -354,7 +354,7 @@ if ( Transient )
 ...
 }
             </code></pre></p>
-            <p>From the snippet above, it is creating a Texture2D object and then copying the buffer to a memory location, the problem is that the generated texture is a raw uncompressed texture, resulting in a very big object.</p>
+            <p>From the snippet above, it is creating a <code>Texture2D</code> object and then copying the buffer to a memory location, the problem is that the generated texture is a raw uncompressed texture, resulting in a very big object.</p>
             <p>As I can't see any validations regarding size, it is up to me to implement them.</p>
             <p>I also found out that returning a null <code>Texture2D</code> object would result in an infinite loading when attempting to view other player's profile in the lobby, be it local or remote.</p>
             <p>Ended up finding what called <code>LoadTexture2DFromBufferNosRGB</code> with Cheat Engine as my (VEH) debugger and found:</p>
