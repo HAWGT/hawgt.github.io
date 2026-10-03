@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSR Swimsuit for Misaki Code Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Nunito', sans-serif;
+
+            background: linear-gradient(135deg, #4fc3f7 0%, #81d4fa 25%, #ffb74d 75%, #f48fb1 100%);
+            background-size: 200% 200%;
+            animation: waveGradient 15s ease infinite;
+            overflow: hidden;
+        }
+
+        @keyframes waveGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 40px 30px;
+            width: 340px;
+            
+            /* Glassmorphism Effect */
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 24px;
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.15),
+                inset 0 0 20px rgba(255, 255, 255, 0.5);
+            position: relative;
+        }
+
+        .container::before, .container::after {
+            content: '*';
+            position: absolute;
+            color: #fff;
+            font-size: 24px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        .container::before { top: -10px; left: -10px; animation: float 3s ease-in-out infinite; }
+        .container::after { bottom: -10px; right: -10px; animation: float 3s ease-in-out infinite 1.5s; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.2); }
+        }
+
+        .title {
+            text-align: center;
+            margin: 0 0 -5px 0;
+            color: #fff;
+            font-weight: 800;
+            font-size: 22px;
+            text-shadow: 0 2px 4px rgba(233, 30, 99, 0.4);
+            letter-spacing: 1px;
+        }
+
+        input {
+            padding: 14px 16px;
+            font-size: 16px;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+            color: #555;
+            background: rgba(255, 255, 255, 0.85);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        input::placeholder {
+            color: #aaa;
+            font-weight: 400;
+        }
+
+        input:focus {
+            background: #ffffff;
+            border-color: #4fc3f7;
+            box-shadow: 0 0 15px rgba(79, 195, 247, 0.5);
+        }
+
+        button {
+            padding: 15px;
+            font-size: 18px;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 800;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 20px;
+
+            background: linear-gradient(135deg, #ff7eb3 0%, #ff758c 100%);
+            box-shadow: 
+                0 6px 15px rgba(255, 117, 140, 0.4),
+                inset 0 2px 0 rgba(255, 255, 255, 0.4);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px) scale(1.02);
+            background: linear-gradient(135deg, #ff8cb9 0%, #ff8398 100%);
+            box-shadow: 
+                0 8px 20px rgba(255, 117, 140, 0.6),
+                inset 0 2px 0 rgba(255, 255, 255, 0.5);
+        }
+
+        button:active {
+            transform: translateY(2px) scale(0.98);
+            box-shadow: 0 2px 10px rgba(255, 117, 140, 0.4);
+        }
+
+        .output {
+            background: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            font-family: monospace;
+            font-size: 15px;
+            color: #d81b60;
+            border: 2px dashed rgba(255, 255, 255, 0.8);
+            cursor: default;
+        }
+
+        .output:focus {
+            border-color: #ff758c;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="title">SSR Swimsuit for Misaki</div>
+        <input type="text" id="userIdInput" placeholder="STEAMID64 (76561197960287930)" />
+        <button onclick="handleGenerate()">Generate</button>
+        <input type="text" id="outputField" class="output" readonly placeholder="CODE" />
+    </div>
+
+    <script>
+        const BASE62_ALPH = "0123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ#+@";
+        const HEX_ALPH = "0123456789ABCDEF";
+        const aKtwtqxjssm = [
+            0x4B, 0x54, 0x57, 0x54, 0x51, 0x58, 0x4A, 0x53, 0x53, 0x4D,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x4C, 0x52, 0x52, 0x49, 0x57, 0x50, 0x53, 0x56, 0x53, 0x4A,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x48, 0x51, 0x51, 0x4B, 0x49, 0x52, 0x55, 0x52, 0x4F, 0x56,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x55, 0x4E, 0x51, 0x50, 0x51, 0x48, 0x4A, 0x50, 0x50, 0x47
+        ];
+
+        function encodeBase62Value(val) {
+            val = BigInt(val);
+            if (val === 0n) return "0";
+            let base62Str = "";
+            let length = 0;
+            while (val > 0n) {
+                base62Str = BASE62_ALPH[Number(val % 62n)] + base62Str;
+                val = val / 62n;
+                length++;
+            }
+            return HEX_ALPH[length] + base62Str;
+        }
+
+        function buildUUIDSegment(a1, a2, a3) {
+            return encodeBase62Value(a1) + encodeBase62Value(a2) + encodeBase62Value(a3);
+        }
+
+        function getSignature(a4, a5, a6, userId) {
+            const offset_base = 20 * a4;
+            let v13 = aKtwtqxjssm[offset_base + 1];
+            let v14 = (a4 + 1 + aKtwtqxjssm[offset_base + 0]) & 0xFF;
+            let a1 = (a5 ^ v14) & 0xFF;
+            let a2 = (a6 ^ ((a4 + 1 + v13) & 0xFF)) & 0xFF;
+            let v7 = 0n;
+            let userId_bytes = new Uint8Array(8);
+            for (let k = 0; k < 8; ++k) {
+                userId_bytes[k] = Number((userId >> BigInt(8 * k)) & 0xFFn);
+            }
+            for (let i = 0; i < 8; ++i) {
+                let v18 = 7 - i;
+                let buf_byte = (a4 + 1 + aKtwtqxjssm[offset_base + 2 + i]) & 0xFF;
+                let stack_byte = userId_bytes[v18];
+                let xorVal = BigInt(buf_byte ^ stack_byte);
+                v7 |= (xorVal << BigInt(8 * v18));
+            }
+            return { a1, a2, a3: v7 };
+        }
+
+        function generate(userId) {
+            let uuid = buildUUIDSegment(128n, 0n, userId);
+            let sig = getSignature(1, 128, 0, userId);
+            uuid += buildUUIDSegment(BigInt(sig.a1), BigInt(sig.a2), sig.a3);
+            return uuid;
+        }
+
+        function handleGenerate() {
+            const inputVal = document.getElementById("userIdInput").value.trim();
+            const outputField = document.getElementById("outputField");
+            if (!inputVal) {
+                outputField.value = "EMPTY USER ID";
+                return;
+            }
+            try {
+                const userIdBigInt = BigInt(inputVal);
+                outputField.value = generate(userIdBigInt);
+
+            } catch (error) {
+                outputField.value = "INVALID USERID";
+            }
+        }
+    </script>
+</body>
+</html>
